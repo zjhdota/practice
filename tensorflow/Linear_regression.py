@@ -7,7 +7,7 @@ rng = np.random
 # 学习速率
 learning_rate = 0.1
 # 训练次数
-trainin_epochs = 8000
+trainin_epochs = 2000
 # 每隔多少显示次数
 display_step = 50
 
@@ -32,14 +32,14 @@ Y = tf.placeholder('float')
 W = tf.Variable(rng.randn(), name="weight")
 b = tf.Variable(rng.randn(), name='bias')
 # Construct a linear model
-activation = tf.add(tf.multiply(X,W),b)
+y = tf.add(tf.multiply(X,W),b)
 
 # reduce_sum: n维求和
 # reduce_mean: 求平均值
 # tf.square : 求平方
 # Minimize the squared errors
-cost = tf.reduce_sum(tf.pow(Y-activation, 2))/(2 * n_samples)
-cost = tf.reduce_mean(tf.square(Y-activation))/5000
+
+cost = tf.reduce_mean(tf.square(Y-y))
 optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
 
 # 初始化变量
