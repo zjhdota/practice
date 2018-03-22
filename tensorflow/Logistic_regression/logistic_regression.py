@@ -17,7 +17,7 @@ batch_size = 100
 display_step = 1
 
 # 设置两个占位符None:表示任意长度,784个维度
-X = tf.placeholder(tf.float32, [None, 784])
+X = tf.placeholder(tf.float32, [None, 784]) # 28*28
 # 图片的实际标签0~9
 Y = tf.placeholder(tf.float32, [None, 10])
 
@@ -76,37 +76,46 @@ with tf.Session() as session:
 # 调高正确率，构建一个卷积神经网络
 # 权重初始化
 def weight_variable(shape):
-  initial = tf.truncated_normal(shape, stddev=0.1)
-  return tf.Variable(initial)
+    # stddev 标准差
+    initial = tf.truncated_normal(shape, stddev=0.1)
+    return tf.Variable(initial)
 
+# 偏置初始化
 def bias_variable(shape):
-  initial = tf.constant(0.1, shape=shape)
-  return tf.Variable(initial)
+    initial = tf.constant(0.1, shape=shape)
+    return tf.Variable(initial)
 
 # 卷积和池化
 def conv2d(x, W):
-  return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+    # padding： [VALID, SAME] same: 保持原本图片大小;valid: 不够步长大小就丢弃
+    # strides: 步长 strides=[batch,height, width, channels]
+    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 def max_pool_2x2(x):
-  return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
+    # ksize 池化窗口大小[1, height, width, 1] 卷积核大小
+    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                         strides=[1, 2, 2, 1], padding='SAME')
 
+# 第一次卷积池化
+# patch=5*5; insize:1 输入值 image的厚度1,因为图片为黑白所以为1,代表灰度?;
+# depth: 32 输出图片厚度,可任意设置,改变精度; 也是卷积核的数量
 W_conv1 = weight_variable([5, 5, 1, 32])
 b_conv1 = bias_variable([32])
 
-x_image = tf.reshape(X, [-1,28,28,1])
+# -1忽略掉维度，也就是忽略掉例子有多少； channel = 1 黑白图片
+x_image = tf.reshape(X, [-1, 28, 28, 1]) # 28 * 28
 
-h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
-h_pool1 = max_pool_2x2(h_conv1)
+h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1) # output size: 28 * 28 * 32
+h_pool1 = max_pool_2x2(h_conv1)                          # output size: 14 * 14 * 32
 
-# 第二层卷积
+# 第二次卷积池化
 W_conv2 = weight_variable([5, 5, 32, 64])
 b_conv2 = bias_variable([64])
 
-h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
-h_pool2 = max_pool_2x2(h_conv2)
+h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2) # output size: 14 * 14 * 64
+h_pool2 = max_pool_2x2(h_conv2) # output size: 7 * 7 * 64
 
-# 密集连接层
+# 全连接层
 W_fc1 = weight_variable([7 * 7 * 64, 1024])
 b_fc1 = bias_variable([1024])
 
@@ -121,15 +130,17 @@ h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 W_fc2 = weight_variable([1024, 10])
 b_fc2 = bias_variable([10])
 
-y_conv=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+prediction = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 
-cross_entropy = -tf.reduce_sum(Y*tf.log(y_conv))
+cross_entropy = tf.reduce_mean(-tf.reduce_sum(Y * tf.log(prediction), reduction_indices=1))
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
-correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(Y,1))
+
+correct_prediction = tf.equal(tf.argmax(prediction,1), tf.argmax(Y,1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+
 with tf.Session() as session:
     session.run(tf.global_variables_initializer())
-    for i in range(20000):
+    for i in range(5000):
         batch = mnist.train.next_batch(50)
         if i%100 == 0:
             train_accuracy = accuracy.eval(feed_dict={
